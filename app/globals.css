@@ -17,19 +17,38 @@
   }
 }
 
+/* Global smooth transitions for theme switching */
+body,
+header,
+aside,
+main,
+nav,
+div,
+section,
+article,
+footer,
+button,
+input,
+textarea,
+select {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
 /* Quantum theme palette (default dark mode) */
 :root,
-.quantum,
-.dark .quantum,
-[data-theme='dark'] .quantum {
+.dark,
+[data-theme='dark'] {
   --q-bg: oklch(0.16 0.03 265);
   --q-bg-deep: oklch(0.11 0.025 265);
+  --q-card: oklch(0.20 0.03 265);
   --q-cyan: oklch(0.78 0.14 200);
   --q-violet: oklch(0.66 0.19 292);
   --q-blue: oklch(0.62 0.17 255);
   --q-text: oklch(0.96 0.01 260);
   --q-muted: oklch(0.72 0.03 265);
-  --q-line: oklch(1 0 0 / 10%);
+  --q-line: oklch(1 0 0 / 12%);
+  --q-starfield-opacity: 0.4;
+  color-scheme: dark;
 }
 
 /* Light theme override */
@@ -37,15 +56,114 @@
 .light .quantum,
 [data-theme='light'],
 [data-theme='light'] .quantum {
-  --q-bg: oklch(0.98 0.01 240);
-  --q-bg-deep: oklch(0.94 0.015 240);
+  --q-bg: oklch(0.98 0.005 240);
+  --q-bg-deep: oklch(0.93 0.015 240);
+  --q-card: oklch(1 0 0);
   --q-cyan: oklch(0.48 0.18 200);
   --q-violet: oklch(0.52 0.22 292);
   --q-blue: oklch(0.45 0.19 255);
   --q-text: oklch(0.18 0.03 265);
   --q-muted: oklch(0.42 0.04 265);
   --q-line: oklch(0 0 0 / 12%);
+  --q-starfield-opacity: 0.15;
+  color-scheme: light;
 }
+
+/* ─── Light mode: remap hardcoded Tailwind white utilities ─────────────────
+   Components use text-white, bg-white/*, border-white/* etc. which are
+   invisible on light backgrounds. These overrides redirect them to theme
+   tokens scoped safely under .light so dark mode is never affected.
+   ─────────────────────────────────────────────────────────────────────── */
+.light .text-white {
+  color: var(--q-text) !important;
+}
+.light .text-white\/80 {
+  color: oklch(0.18 0.03 265 / 80%) !important;
+}
+.light .text-white\/60 {
+  color: oklch(0.18 0.03 265 / 60%) !important;
+}
+.light .text-white\/40 {
+  color: oklch(0.18 0.03 265 / 40%) !important;
+}
+.light .text-white\/20 {
+  color: oklch(0.18 0.03 265 / 20%) !important;
+}
+
+/* Backgrounds: white/5–white/20 become subtle dark tints in light mode */
+.light .bg-white\/5 {
+  background-color: oklch(0.18 0.03 265 / 5%) !important;
+}
+.light .bg-white\/10 {
+  background-color: oklch(0.18 0.03 265 / 8%) !important;
+}
+.light .bg-white\/15 {
+  background-color: oklch(0.18 0.03 265 / 12%) !important;
+}
+.light .bg-white\/20 {
+  background-color: oklch(0.18 0.03 265 / 15%) !important;
+}
+
+/* Borders */
+.light .border-white\/10 {
+  border-color: oklch(0.18 0.03 265 / 12%) !important;
+}
+.light .border-white\/20 {
+  border-color: oklch(0.18 0.03 265 / 18%) !important;
+}
+
+/* Hover states */
+.light .hover\:text-white:hover {
+  color: var(--q-text) !important;
+}
+.light .hover\:border-white\/20:hover {
+  border-color: oklch(0.18 0.03 265 / 18%) !important;
+}
+
+/* Progress bar tracks */
+.light .bg-white\/10.overflow-hidden {
+  background-color: oklch(0.18 0.03 265 / 10%) !important;
+}
+
+/* Disabled / locked states using text-white/40 */
+.light .text-white\/40 {
+  color: oklch(0.18 0.03 265 / 40%) !important;
+}
+
+/* Ensure all headings and body copy in light mode use token colour */
+.light h1,
+.light h2,
+.light h3,
+.light h4,
+.light p,
+.light span,
+.light label {
+  color: inherit;
+}
+
+/* Input / textarea / select: fix text colour in light mode */
+.light input,
+.light textarea,
+.light select {
+  color: var(--q-text);
+}
+.light input::placeholder,
+.light textarea::placeholder {
+  color: var(--q-muted);
+}
+
+/* Table cells */
+.light td,
+.light th {
+  color: var(--q-text);
+}
+
+/* Base body background sync */
+body {
+  background-color: var(--q-bg);
+  color: var(--q-text);
+}
+
 
 @keyframes q-orbit {
   from {

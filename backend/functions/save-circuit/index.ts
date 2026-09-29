@@ -15,9 +15,12 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+// IMPORTANT: PlacedGate here must stay in sync with types/quantify.ts PlacedGate.
+// GateType there is: 'X' | 'Y' | 'Z' | 'H' | 'S' | 'T' | 'CNOT' | 'SWAP' | 'M'
+// Do not add or remove gate types here without updating types/quantify.ts as well.
 export interface PlacedGate {
   id: string
-  type: 'X' | 'Y' | 'Z' | 'H' | 'S' | 'T' | 'CNOT'
+  type: 'X' | 'Y' | 'Z' | 'H' | 'S' | 'T' | 'CNOT' | 'SWAP' | 'M'
   targetQubit: number
   controlQubit?: number
   step: number
@@ -115,6 +118,22 @@ serve(async (req: Request) => {
     // 2. Prepare circuit record
     const circuitId = body.id || crypto.randomUUID()
     const now = new Date().toISOString()
+
+    // 2b. Verify ownership if modifying an existing circuit ID
+    if (body.id) {
+      const { data: existingCircuit } = await supabase
+        .from('saved_circuits')
+        .select('user_id')
+        .eq('id', body.id)
+        .maybeSingle()
+
+      if (existingCircuit && existingCircuit.user_id !== userId) {
+        return new Response(
+          JSON.stringify({ error: 'Forbidden. You do not own this circuit.' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    }
 
     const circuitRecord = {
       id: circuitId,

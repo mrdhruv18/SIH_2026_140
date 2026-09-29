@@ -15,6 +15,8 @@ import {
   AlertTriangle,
   PlayCircle,
   Activity,
+  GraduationCap,
+  BookOpen,
 } from 'lucide-react'
 import {
   AreaChart,
@@ -32,9 +34,16 @@ import { fetchLearningPathServer, LearningPathItem } from '@/lib/api/learning-pa
 import { supabase } from '@/backend/supabase-client'
 import { useAuth } from '@/lib/auth-context'
 import { AppShell } from '@/components/layout/AppShell'
+import { LearningProgressCard } from '@/components/learning'
+import { getContinueHref, getContinueLabel, getLearningPercent } from '@/lib/learning/progress'
+import { useLearningProgress } from '@/lib/learning/use-learning-progress'
+import { LEARNING_CARD_CLASS, LEARNING_CARD_STYLE, LEARNING_GRADIENT_BUTTON_STYLE } from '@/lib/learning/styles'
 
 export default function DashboardPage() {
   const { user } = useAuth()
+  const { progress } = useLearningProgress()
+  const journeyContinueHref = getContinueHref(progress)
+  const journeyContinueLabel = getContinueLabel(progress)
   const [analytics, setAnalytics] = useState(DASHBOARD_ANALYTICS)
   const [nextTopic, setNextTopic] = useState(DASHBOARD_ANALYTICS.nextRecommendedTopic)
 
@@ -113,6 +122,15 @@ export default function DashboardPage() {
 
           <div className="flex flex-wrap items-center gap-3">
             <Link
+              href="/learn"
+              className="flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-xs font-semibold text-white transition-all hover:bg-white/5"
+              style={{ borderColor: 'var(--q-line)' }}
+            >
+              <GraduationCap className="h-4 w-4 text-cyan-400" />
+              <span>Learning Hub</span>
+            </Link>
+
+            <Link
               href="/simulator"
               className="flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-xs font-semibold text-white transition-all hover:bg-white/5"
               style={{ borderColor: 'var(--q-line)' }}
@@ -170,6 +188,63 @@ export default function DashboardPage() {
                 background: 'linear-gradient(90deg, var(--q-cyan), var(--q-violet))',
               }}
             />
+          </div>
+        </div>
+
+        {/* Beginner Learning Journey — additive; does not replace simulator or topic CTAs */}
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-1">
+            <div className="mb-3 flex items-center gap-2">
+              <GraduationCap className="h-4 w-4 text-[var(--q-cyan)]" />
+              <h2 className="font-heading text-base font-bold text-white">Learning Journey</h2>
+            </div>
+            <LearningProgressCard
+              percent={getLearningPercent(progress)}
+              continueHref={journeyContinueHref}
+              continueLabel={journeyContinueLabel}
+            />
+          </div>
+          <Link href="/learn/intro" className={`${LEARNING_CARD_CLASS} hover:bg-white/5`} style={LEARNING_CARD_STYLE}>
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-cyan-500/30 bg-cyan-500/10 text-[var(--q-cyan)] mb-3">
+              <BookOpen className="h-4 w-4" />
+            </div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--q-cyan)]">Start Learning</p>
+            <h3 className="font-heading mt-1 text-lg font-bold text-white">Introduction to Quantum Computing</h3>
+            <p className="mt-2 text-xs text-[var(--q-muted)] leading-relaxed">
+              Stage 0 for complete beginners. Plain language, no formulas, no circuit editor.
+            </p>
+          </Link>
+          <Link href={journeyContinueHref} className={`${LEARNING_CARD_CLASS} text-black`} style={LEARNING_GRADIENT_BUTTON_STYLE}>
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-black/15 mb-3">
+              <ArrowRight className="h-4 w-4" />
+            </div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-black/70">Continue Learning</p>
+            <h3 className="font-heading mt-1 text-lg font-bold">Pick up the beginner path</h3>
+            <p className="mt-2 text-xs text-black/70 leading-relaxed">
+              Resume Stage 0 or jump into the interactive playground. Existing topics and quizzes are unchanged.
+            </p>
+          </Link>
+        </div>
+
+        {/* Simulator Academy Foundation */}
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-1">
+            <div className="mb-3 flex items-center gap-2">
+              <Cpu className="h-4 w-4 text-[var(--q-cyan)]" />
+              <h2 className="font-heading text-base font-bold text-white">Simulator Academy</h2>
+            </div>
+            <div className={LEARNING_CARD_CLASS} style={LEARNING_CARD_STYLE}>
+              <h3 className="font-heading text-base font-bold text-white mb-2">Build circuits. Master algorithms.</h3>
+              <p className="text-xs text-[var(--q-muted)] mb-4">Complete guided missions to learn the simulator mechanics, then tackle open-ended challenges.</p>
+              <Link
+                href="/academy"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-2.5 text-xs font-bold text-black transition-transform hover:scale-105 shadow-xl shadow-cyan-500/20"
+                style={LEARNING_GRADIENT_BUTTON_STYLE}
+              >
+                Continue Academy
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
           </div>
         </div>
 

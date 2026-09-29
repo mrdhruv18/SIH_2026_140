@@ -139,14 +139,15 @@ export default function TutorPage() {
                 <div
                   className={`max-w-2xl rounded-3xl p-4 sm:p-5 space-y-3 leading-relaxed ${
                     isUser
-                      ? 'border border-[var(--q-cyan)]/30 text-white'
-                      : 'border backdrop-blur-xl text-slate-200'
+                      ? 'border border-[var(--q-cyan)]/30'
+                      : 'border backdrop-blur-xl'
                   }`}
                   style={{
                     background: isUser
                       ? 'linear-gradient(135deg, color-mix(in oklch, var(--q-cyan) 25%, transparent), color-mix(in oklch, var(--q-violet) 25%, transparent))'
                       : 'var(--q-bg-deep)',
                     borderColor: isUser ? undefined : 'var(--q-line)',
+                    color: 'var(--q-text)',
                   }}
                 >
                   <p className="whitespace-pre-wrap">{msg.text}</p>
@@ -181,12 +182,12 @@ export default function TutorPage() {
 
                   {/* Concept Card */}
                   {msg.conceptCard && (
-                    <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-3.5 text-xs text-cyan-200 space-y-1">
-                      <p className="font-bold text-white flex items-center gap-1.5">
-                        <Sparkles className="h-3.5 w-3.5 text-cyan-300" />
+                    <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-3.5 text-xs space-y-1" style={{ color: 'var(--q-text)' }}>
+                      <p className="font-bold flex items-center gap-1.5" style={{ color: 'var(--q-cyan)' }}>
+                        <Sparkles className="h-3.5 w-3.5" style={{ color: 'var(--q-cyan)' }} />
                         {msg.conceptCard.title}
                       </p>
-                      <p className="text-[11px] text-cyan-200/90">{msg.conceptCard.summary}</p>
+                      <p className="text-[11px]" style={{ color: 'var(--q-muted)' }}>{msg.conceptCard.summary}</p>
                     </div>
                   )}
 
@@ -202,7 +203,7 @@ export default function TutorPage() {
                 </div>
 
                 {isUser && (
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/10 text-white">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[var(--q-line)] bg-white/10" style={{ color: 'var(--q-text)' }}>
                     <User className="h-4 w-4" />
                   </div>
                 )}
@@ -244,10 +245,11 @@ export default function TutorPage() {
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder={`Ask a quantum question tailored to your ${user.level} knowledge level...`}
-            className="w-full rounded-2xl border py-3.5 pl-4 pr-24 text-xs text-white outline-none placeholder:text-[var(--q-muted)]"
+            className="w-full rounded-2xl border py-3.5 pl-4 pr-24 text-xs outline-none placeholder:text-[var(--q-muted)]"
             style={{
               borderColor: 'var(--q-line)',
               background: 'var(--q-bg-deep)',
+              color: 'var(--q-text)',
             }}
           />
           <button

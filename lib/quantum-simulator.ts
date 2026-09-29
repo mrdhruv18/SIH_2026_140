@@ -1,187 +1,30 @@
-import { BasisStateProbability, GateType, PlacedGate, SimulationResult } from '@/types/quantify'
+// ==============================================================================
+// QUANTIFY — lib/quantum-simulator.ts
+// ==============================================================================
+// Public re-export shim. Callers (app/simulator/page.tsx, lib/api/circuits.ts,
+// tests/) import from this file and nothing breaks when the internal modules
+// are reorganised.
+//
+// Internal implementation is split across three focused modules:
+//   lib/quantum/complex.ts   — Complex type and arithmetic
+//   lib/quantum/gates.ts     — 2×2 unitary gate matrices
+//   lib/quantum/statevector.ts — Gate application and probability extraction
+//
+// BIT-ORDERING CONVENTION: Qubit 0 = LSB (rightmost) — matches Qiskit's own
+// bitstring printing. See lib/quantum/statevector.ts for the full explanation.
+// ==============================================================================
 
-interface Complex {
-  r: number // real
-  i: number // imag
-}
+// Re-export the primary simulation entry-point under its original name so that
+// every existing import continues to work without any changes.
+export { runCircuit as simulateQuantumCircuit } from './quantum/statevector'
 
-function cAdd(a: Complex, b: Complex): Complex {
-  return { r: a.r + b.r, i: a.i + b.i }
-}
-
-function cMul(a: Complex, b: Complex): Complex {
-  return { r: a.r * b.r - a.i * b.i, i: a.r * b.i + a.i * b.r }
-}
-
-function cAbsSq(a: Complex): number {
-  return a.r * a.r + a.i * a.i
-}
-
-// 2x2 Unitary Gate Matrices [ [u00, u01], [u10, u11] ]
-const GATES_1Q: Record<string, [[Complex, Complex], [Complex, Complex]]> = {
-  X: [
-    [{ r: 0, i: 0 }, { r: 1, i: 0 }],
-    [{ r: 1, i: 0 }, { r: 0, i: 0 }],
-  ],
-  Y: [
-    [{ r: 0, i: 0 }, { r: 0, i: -1 }],
-    [{ r: 0, i: 1 }, { r: 0, i: 0 }],
-  ],
-  Z: [
-    [{ r: 1, i: 0 }, { r: 0, i: 0 }],
-    [{ r: 0, i: 0 }, { r: -1, i: 0 }],
-  ],
-  H: [
-    [{ r: 1 / Math.SQRT2, i: 0 }, { r: 1 / Math.SQRT2, i: 0 }],
-    [{ r: 1 / Math.SQRT2, i: 0 }, { r: -1 / Math.SQRT2, i: 0 }],
-  ],
-  S: [
-    [{ r: 1, i: 0 }, { r: 0, i: 0 }],
-    [{ r: 0, i: 0 }, { r: 0, i: 1 }],
-  ],
-  T: [
-    [{ r: 1, i: 0 }, { r: 0, i: 0 }],
-    [{ r: 0, i: 0 }, { r: Math.SQRT1_2, i: Math.SQRT1_2 }],
-  ],
-}
-
-/**
- * Simulates an N-qubit quantum circuit classically using full state-vector evolution.
- * Supports up to 5 qubits (dimension 32), X, Y, Z, H, S, T, and CNOT.
- */
-export function simulateQuantumCircuit(
-  qubitCount: number,
-  gates: PlacedGate[]
-): SimulationResult {
-  const startTime = performance.now()
-  const dim = 1 << qubitCount
-
-  // Initial state |0...0> = [1, 0, 0, ... 0]
-  let state: Complex[] = Array.from({ length: dim }, (_, idx) =>
-    idx === 0 ? { r: 1, i: 0 } : { r: 0, i: 0 }
-  )
-
-  // Sort gates sequentially by step column (0 to 7)
-  const sortedGates = [...gates].sort((a, b) => a.step - b.step)
-
-  for (const gate of sortedGates) {
-    if (gate.type === 'CNOT') {
-      const control = gate.controlQubit ?? 0
-      const target = gate.targetQubit
-
-      if (control === target || control >= qubitCount || target >= qubitCount) {
-        continue // invalid CNOT
-      }
-
-      const nextState: Complex[] = [...state]
-      for (let i = 0; i < dim; i++) {
-        const controlBit = (i >> control) & 1
-        if (controlBit === 1) {
-          // Flip target bit
-          const flippedIndex = i ^ (1 << target)
-          nextState[flippedIndex] = state[i]
-        } else {
-          nextState[i] = state[i]
-        }
-      }
-      state = nextState
-    } else if (gate.type === 'SWAP') {
-      const control = gate.controlQubit ?? 0
-      const target = gate.targetQubit
-
-      if (control === target || control >= qubitCount || target >= qubitCount) {
-        continue // invalid SWAP
-      }
-
-      const nextState: Complex[] = [...state]
-      for (let i = 0; i < dim; i++) {
-        const bitC = (i >> control) & 1
-        const bitT = (i >> target) & 1
-        if (bitC !== bitT) {
-          const swappedIdx = i ^ (1 << control) ^ (1 << target)
-          nextState[swappedIdx] = state[i]
-        }
-      }
-      state = nextState
-    } else if (gate.type === 'M') {
-      // Measurement marker gate - preserved for readout register indexing
-      continue
-    } else {
-      // 1-Qubit Gate
-      const mat = GATES_1Q[gate.type]
-      if (!mat || gate.targetQubit >= qubitCount) continue
-
-      const target = gate.targetQubit
-      const nextState: Complex[] = Array.from({ length: dim }, () => ({ r: 0, i: 0 }))
-
-      for (let i = 0; i < dim; i++) {
-        const bit = (i >> target) & 1
-        const i0 = i & ~(1 << target) // index with target bit = 0
-        const i1 = i | (1 << target) // index with target bit = 1
-
-        if (bit === 0) {
-          nextState[i] = cAdd(
-            cMul(mat[0][0], state[i0]),
-            cMul(mat[0][1], state[i1])
-          )
-        } else {
-          nextState[i] = cAdd(
-            cMul(mat[1][0], state[i0]),
-            cMul(mat[1][1], state[i1])
-          )
-        }
-      }
-      state = nextState
-    }
-  }
-
-  // Calculate measurement probabilities
-  const basisStates: BasisStateProbability[] = state.map((amp, idx) => {
-    // Format binary string with qubit 0 on the right: |q_(n-1)...q_0>
-    const binary = idx.toString(2).padStart(qubitCount, '0')
-    const prob = cAbsSq(amp)
-    return {
-      state: `|${binary}⟩`,
-      probability: Number(prob.toFixed(4)),
-      percentage: Number((prob * 100).toFixed(1)),
-      amplitudeReal: Number(amp.r.toFixed(3)),
-      amplitudeImag: Number(amp.i.toFixed(3)),
-    }
-  })
-
-  // Formatted statevector representation
-  const stateVector = state.map((amp, idx) => {
-    const binary = idx.toString(2).padStart(qubitCount, '0')
-    const mag = Math.sqrt(cAbsSq(amp))
-    let ampStr = '0.0'
-    if (mag > 0.0001) {
-      if (Math.abs(amp.i) < 0.0001) {
-        ampStr = amp.r.toFixed(3)
-      } else if (Math.abs(amp.r) < 0.0001) {
-        ampStr = `${amp.i.toFixed(3)}i`
-      } else {
-        ampStr = `${amp.r.toFixed(3)} ${amp.i >= 0 ? '+' : '-'} ${Math.abs(amp.i).toFixed(3)}i`
-      }
-    }
-    return {
-      state: `|${binary}⟩`,
-      amplitude: ampStr,
-      magnitude: Number(mag.toFixed(3)),
-    }
-  })
-
-  // Detect entanglement heuristic (multiple non-zero states with correlations)
-  const nonZero = basisStates.filter((s) => s.probability > 0.01)
-  const hasCnot = gates.some((g) => g.type === 'CNOT')
-  const isEntangled = hasCnot && nonZero.length > 1 && nonZero.every((s) => s.probability > 0.3)
-
-  const executionTimeMs = Number((performance.now() - startTime).toFixed(2))
-
-  return {
-    qubitCount,
-    basisStates,
-    executionTimeMs,
-    isEntangled,
-    stateVector,
-  }
-}
+// Re-export types used by callers that previously imported from here
+export type { Complex } from './quantum/complex'
+export { GATE_MATRICES } from './quantum/gates'
+export {
+  applySingleQubitGate,
+  applyCNOT,
+  applySWAP,
+  computeProbabilities,
+  formatStateVector,
+} from './quantum/statevector'

@@ -36,6 +36,18 @@ interface TutorChatPayload {
   message: string
   currentTopic?: string
   currentLevel?: string
+  /** Tutor mode: 'normal' | 'analogy' | 'mistake-doctor' */
+  mode?: 'normal' | 'analogy' | 'mistake-doctor'
+  /** For mistake-doctor mode */
+  questionText?: string
+  chosenOptionText?: string
+  correctOptionText?: string
+  /** Active circuit context injected into the system prompt */
+  circuitContext?: {
+    qubitCount: number
+    placedGates: PlacedGate[]
+    qiskitCode?: string
+  }
 }
 
 // Extracts code block (e.g. ```python ... ```) from markdown text
@@ -123,6 +135,24 @@ serve(async (req: Request) => {
       )
     }
 
+    // §3.5: cap message length to prevent prompt-injection and runaway token usage
+    const MAX_MESSAGE_LENGTH = 2000
+    if (message.length > MAX_MESSAGE_LENGTH) {
+      return new Response(
+        JSON.stringify({ error: `Message exceeds maximum length of ${MAX_MESSAGE_LENGTH} characters.` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // §3.5: validate mode is in the allowed list
+    const ALLOWED_MODES = new Set(['normal', 'analogy', 'mistake-doctor', undefined])
+    if (!ALLOWED_MODES.has(body.mode)) {
+      return new Response(
+        JSON.stringify({ error: `Invalid mode. Allowed: normal, analogy, mistake-doctor.` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     // 3. Ensure conversation thread exists in public.tutor_conversations
     if (!conversationId) {
       conversationId = crypto.randomUUID()
@@ -198,11 +228,11 @@ serve(async (req: Request) => {
     }
 
     // 6. Call Google Gemini API
-    const circuitContext = (body as any).circuitContext
-    const mode = (body as any).mode
-    const questionText = (body as any).questionText
-    const chosenOptionText = (body as any).chosenOptionText
-    const correctOptionText = (body as any).correctOptionText
+    const circuitContext = body.circuitContext
+    const mode = body.mode
+    const questionText = body.questionText
+    const chosenOptionText = body.chosenOptionText
+    const correctOptionText = body.correctOptionText
     let circuitDetailsStr = ''
     if (circuitContext) {
       circuitDetailsStr = `\nActive Student Circuit Context:\nQubit Count: ${circuitContext.qubitCount}\nGates: ${JSON.stringify(circuitContext.placedGates)}\nCode: ${circuitContext.qiskitCode || 'N/A'}`

@@ -68,6 +68,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile>(DEFAULT_USER)
 
   useEffect(() => {
+    // Ensure active session cookie exists for fast middleware routing
+    if (typeof document !== 'undefined' && !document.cookie.includes('quantify_session')) {
+      document.cookie = 'quantify_session=active; path=/; max-age=604800; SameSite=Lax'
+    }
+
     // 1. Check local storage cache
     const saved = localStorage.getItem('quantify_user_profile')
     if (saved) {

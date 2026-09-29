@@ -1,6 +1,16 @@
 import { supabase } from '@/backend/supabase-client'
 import { apiPost } from '@/lib/api/client'
 
+/** Minimal gate shape used for circuit linting and tutor context. */
+export interface TutorGate {
+  id?: string
+  type: string
+  qubitIndex: number
+  stepIndex: number
+  controlQubitIndex?: number
+  targetQubitIndex?: number
+}
+
 export interface SuggestedChip {
   id: string
   label: string
@@ -119,7 +129,7 @@ export interface CircuitLintResult {
  * Static rule-based analyzer for quantum circuits.
  * Runs pre-pass checks before passing circuit context to Gemini AI.
  */
-export function lintCircuit(gates: any[], qubitCount: number): CircuitLintResult {
+export function lintCircuit(gates: TutorGate[], qubitCount: number): CircuitLintResult {
   const issues: string[] = []
 
   // Check 1: Missing Measurement Gate
@@ -182,8 +192,8 @@ export async function sendTutorChatMessage(
   conversationId?: string,
   circuitContext?: {
     qubitCount: number
-    placedGates: any[]
-    results?: any
+    placedGates: TutorGate[]
+    results?: unknown
     qiskitCode?: string
   },
   mode?: string,

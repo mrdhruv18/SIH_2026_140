@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Compass,
   BookOpen,
+  GraduationCap,
   Library,
   BookMarked,
   Cpu,
@@ -28,6 +29,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { Starfield } from '@/components/starfield'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 
 interface NavItem {
   label: string
@@ -43,9 +45,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, updateUser } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [optimisticPath, setOptimisticPath] = useState<string | null>(null)
+
+  // Reset optimistic path state whenever pathname updates
+  React.useEffect(() => {
+    if (optimisticPath !== null) {
+      console.log(`[AppShell Navigation] Route transition completed. Active pathname: "${pathname}" at ${Date.now()}ms`)
+      setOptimisticPath(null)
+    }
+  }, [pathname, optimisticPath])
+
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string, label: string) => {
+    console.log(`[AppShell Navigation] CLICK REGISTERED for "${label}" -> "${href}" at ${Date.now()}ms`)
+    setOptimisticPath(href)
+    setMobileOpen(false)
+    router.push(href)
+  }
 
   const navItems: NavItem[] = [
     { label: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
+    { label: 'Learning Hub', href: '/learn', icon: <GraduationCap className="h-4 w-4" />, badge: 'Beginner' },
     { label: 'Learning Path', href: '/path', icon: <Compass className="h-4 w-4" /> },
     { label: 'Learn', href: '/topic/qubits', icon: <BookOpen className="h-4 w-4" /> },
     { label: 'Resources', href: '/resources', icon: <Library className="h-4 w-4" /> },
@@ -63,7 +82,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const filteredNav = navItems.filter((item) => !item.adminOnly || user.role === 'admin')
 
   // Derive breadcrumbs
-  const segments = pathname.split('/').filter(Boolean)
+  const currentActivePath = optimisticPath ?? pathname
+  const segments = currentActivePath.split('/').filter(Boolean)
   const breadcrumbText = segments.length > 0
     ? segments[0].charAt(0).toUpperCase() + segments[0].slice(1)
     : 'Dashboard'
@@ -86,7 +106,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         >
           {/* Logo Header */}
           <div className="flex h-16 items-center justify-between border-b px-5" style={{ borderColor: 'var(--q-line)' }}>
-            <Link href="/dashboard" className="flex items-center gap-2.5">
+            <Link href="/dashboard" onClick={(e) => handleNavClick(e, '/dashboard', 'Dashboard Logo')} className="flex items-center gap-2.5">
               <span
                 className="flex h-9 w-9 items-center justify-center rounded-xl"
                 style={{
@@ -107,20 +127,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </span>
           </div>
 
-
-
           {/* Navigation Items */}
           <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
             {filteredNav.map((item) => {
-              const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+              const isActive = currentActivePath === item.href || (item.href !== '/dashboard' && currentActivePath.startsWith(item.href))
               return (
                 <Link
                   key={item.label}
                   href={item.href}
-                  className={`group flex items-center justify-between rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-200 ${
+                  prefetch={true}
+                  onClick={(e) => handleNavClick(e, item.href, item.label)}
+                  className={`group flex items-center justify-between rounded-xl px-3.5 py-2 text-[13px] font-medium transition-colors duration-150 cursor-pointer ${
                     isActive
                       ? 'text-black font-semibold shadow-lg'
-                      : 'text-[var(--q-muted)] hover:text-white hover:bg-white/5 hover:translate-x-1'
+                      : 'text-[var(--q-muted)] hover:text-white hover:bg-white/10'
                   }`}
                   style={
                     isActive
@@ -131,15 +151,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       : {}
                   }
                 >
-                  <div className="flex items-center gap-3">
-                    <span className={`transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-6 ${isActive ? 'text-black' : 'text-[var(--q-cyan)] group-hover:text-white'}`}>
+                  <div className="flex items-center gap-3 pointer-events-none">
+                    <span className={`transition-transform duration-200 group-hover:scale-110 ${isActive ? 'text-black' : 'text-[var(--q-cyan)] group-hover:text-white'}`}>
                       {item.icon}
                     </span>
                     <span>{item.label}</span>
                   </div>
                   {item.badge && !isActive && (
                     <span
-                      className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                      className="pointer-events-none rounded-full px-2 py-0.5 text-[10px] font-bold"
                       style={{
                         background: 'color-mix(in oklch, var(--q-cyan) 15%, transparent)',
                         color: 'var(--q-cyan)',
@@ -209,28 +229,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between pb-4 border-b" style={{ borderColor: 'var(--q-line)' }}>
-                <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex items-center gap-2">
+                <Link href="/dashboard" onClick={(e) => handleNavClick(e, '/dashboard', 'Mobile Logo')} className="flex items-center gap-2">
                   <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: 'linear-gradient(135deg, var(--q-cyan), var(--q-violet))' }}>
                     <Atom className="h-4 w-4 text-black" />
                   </span>
                   <span className="font-heading font-bold">Quantify</span>
                 </Link>
-                <button onClick={() => setMobileOpen(false)} className="p-1">
-                  <X className="h-5 w-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <ThemeToggle />
+                  <button onClick={() => setMobileOpen(false)} className="p-1">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
               <nav className="flex-1 overflow-y-auto py-4 space-y-1">
                 {filteredNav.map((item) => (
                   <Link
                     key={item.label}
                     href={item.href}
-                    onClick={() => setMobileOpen(false)}
-                    className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium ${
-                      pathname === item.href ? 'bg-cyan-500/20 text-cyan-300 font-semibold' : 'text-slate-300'
+                    prefetch={true}
+                    onClick={(e) => handleNavClick(e, item.href, item.label)}
+                    className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors duration-150 cursor-pointer ${
+                      currentActivePath === item.href ? 'bg-cyan-500/20 text-cyan-300 font-semibold' : 'text-slate-300 hover:bg-white/10'
                     }`}
                   >
-                    {item.icon}
-                    <span>{item.label}</span>
+                    <span className="pointer-events-none flex items-center gap-3">
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </span>
                   </Link>
                 ))}
               </nav>
@@ -269,6 +295,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             {/* Right Topbar Actions */}
             <div className="flex items-center gap-3">
+              <ThemeToggle />
               {/* Quick AI Tutor Shortcut */}
               <Link
                 href="/tutor"

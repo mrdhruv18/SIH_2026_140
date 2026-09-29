@@ -137,11 +137,56 @@ serve(async (req: Request) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  // BIT-ORDERING CONVENTION (this Edge Function):
+  // Qubit 0 is the MOST-SIGNIFICANT BIT (MSB / leftmost) in the state index.
+  // This is the opposite of lib/quantum-simulator.ts (client-side, uses LSB).
+  // Both implementations are internally consistent and produce correct physics,
+  // but basis state labels (e.g. |01⟩ vs |10⟩) may differ for asymmetric circuits.
+  // (See deepdive §9.1 for full explanation.)
+  //
+  // e.g. for 2 qubits (MSB): index 0 = |q0 q1⟩ = |00⟩, index 1 = |q0=0,q1=1⟩ = |01⟩,
+  //                            index 2 = |q0=1,q1=0⟩ = |10⟩, index 3 = |q0=1,q1=1⟩ = |11⟩
+
   try {
     const startTime = performance.now()
     const body = await req.json().catch(() => ({}))
-    const qubitCount = Math.min(16, Math.max(1, Number(body.qubitCount) || 2))
-    const gates: PlacedGate[] = Array.isArray(body.placedGates) ? body.placedGates : []
+
+    // ── §3.5 Input validation (security boundary: service role bypasses RLS) ──
+    const ALLOWED_GATE_TYPES = new Set(['X', 'Y', 'Z', 'H', 'S', 'T', 'CNOT', 'SWAP', 'M'])
+    const MAX_QUBITS = 10 // cap at 10 for browser latency; raise for server-side use
+    const MIN_QUBITS = 1
+
+    const rawQubitCount = Number(body.qubitCount)
+    if (!Number.isInteger(rawQubitCount) || rawQubitCount < MIN_QUBITS || rawQubitCount > MAX_QUBITS) {
+      return new Response(
+        JSON.stringify({ error: `qubitCount must be an integer between ${MIN_QUBITS} and ${MAX_QUBITS}.` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (!Array.isArray(body.placedGates)) {
+      return new Response(
+        JSON.stringify({ error: 'placedGates must be an array.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const invalidGate = (body.placedGates as unknown[]).find(
+      (g: unknown) =>
+        typeof g !== 'object' ||
+        g === null ||
+        !ALLOWED_GATE_TYPES.has((g as Record<string, unknown>).type as string)
+    )
+    if (invalidGate) {
+      return new Response(
+        JSON.stringify({ error: `Invalid gate type. Allowed: ${[...ALLOWED_GATE_TYPES].join(', ')}.` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    // ── end validation ────────────────────────────────────────────────────────
+
+    const qubitCount = rawQubitCount
+    const gates: PlacedGate[] = body.placedGates as PlacedGate[]
     const dim = 1 << qubitCount
 
     // Initialize state |00...0>
@@ -157,26 +202,26 @@ serve(async (req: Request) => {
         isEntangled = true
         const c = gate.controlQubit ?? 0
         const t = gate.targetQubit
-        if (c === t) continue
+        if (c === t || c >= qubitCount || t >= qubitCount) continue
 
         const next = state.slice()
         for (let idx = 0; idx < dim; idx++) {
-          if ((idx & (1 << (qubitCount - 1 - c))) !== 0) {
-            const flipped = idx ^ (1 << (qubitCount - 1 - t))
+          if ((idx & (1 << c)) !== 0) {
+            const flipped = idx ^ (1 << t)
             next[flipped] = state[idx]
           }
         }
         state = next
       } else {
         const u = GATES_1Q[gate.type]
-        if (!u) continue
+        if (!u || gate.targetQubit >= qubitCount) continue
         const t = gate.targetQubit
         const next: Complex[] = new Array(dim)
 
         for (let idx = 0; idx < dim; idx++) {
-          const bit = (idx & (1 << (qubitCount - 1 - t))) !== 0 ? 1 : 0
-          const idx0 = idx & ~(1 << (qubitCount - 1 - t))
-          const idx1 = idx | (1 << (qubitCount - 1 - t))
+          const bit = (idx & (1 << t)) !== 0 ? 1 : 0
+          const idx0 = idx & ~(1 << t)
+          const idx1 = idx | (1 << t)
 
           const a0 = state[idx0]
           const a1 = state[idx1]

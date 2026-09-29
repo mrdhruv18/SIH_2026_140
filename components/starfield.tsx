@@ -23,7 +23,7 @@ const STARS = [
 
 export function Starfield({ className }: { className?: string }) {
   return (
-    <div className={className} aria-hidden="true">
+    <div className={className} style={{ opacity: 'var(--q-starfield-opacity, 0.4)' }} aria-hidden="true">
       {STARS.map((star, i) => (
         <span
           key={i}
@@ -33,8 +33,8 @@ export function Starfield({ className }: { className?: string }) {
             left: star.left,
             width: star.size,
             height: star.size,
-            background: 'var(--q-text)',
-            boxShadow: '0 0 6px var(--q-text)',
+            background: 'var(--q-cyan)',
+            boxShadow: '0 0 6px var(--q-cyan)',
             animation: `q-twinkle ${3 + (i % 4)}s ease-in-out ${star.delay} infinite`,
           }}
         />

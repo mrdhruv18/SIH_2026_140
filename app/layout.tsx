@@ -40,6 +40,25 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className={`scroll-smooth ${spaceGrotesk.variable} ${inter.variable}`}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var saved = localStorage.getItem('quantify_theme_preference');
+                  var theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                  var root = document.documentElement;
+                  root.classList.remove('light', 'dark');
+                  root.classList.add(theme);
+                  root.setAttribute('data-theme', theme);
+                  root.style.colorScheme = theme;
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
       <body className="antialiased font-sans" suppressHydrationWarning>
         <ThemeProvider>
           <AuthProvider>{children}</AuthProvider>

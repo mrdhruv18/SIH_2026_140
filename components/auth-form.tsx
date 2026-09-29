@@ -528,12 +528,16 @@ function Field({
   )
 }
 
-function SocialButton({ label }: { label: string }) {
-  const router = useRouter()
-  
-  const handleClick = () => {
-    document.cookie = 'quantify_session=active; path=/; max-age=604800; SameSite=Lax'
-    router.push('/dashboard')
+function SocialButton({ label }: { label: 'Google' | 'GitHub' }) {
+  const handleClick = async () => {
+    const provider = label.toLowerCase() as 'google' | 'github'
+    await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        // Automatically redirects to the callback route which handles the session exchange
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
   }
 
   return (
